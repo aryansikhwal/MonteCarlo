@@ -1,0 +1,99 @@
+SYSTEM INFO
+-----------
+CPU: Ryzen 7 5000 series
+GPU: NVIDIA RTX3060 (laptop GPU)
+RAM: 16 GB
+OS: Windows 11
+Python: 3.12
+Numba: 0.60.0
+CUDA: unknown
+
+
+EXPERIMENT SETUP
+----------------
+Task: Monte Carlo π estimation
+Goal: Estimate pi using random sampling of points in unit square
+Method: pi ≈ 4 * (points_inside_circle / N)
+
+Notebook experiment style:
+- Single-run timing per method (no averaging)
+- Different N values used per version to demonstrate scaling & bottlenecks
+
+Benchmark size sets used in notebook:
+- sizes = [2,000,000, 5,000,000, 10,000,000]
+- sizes = [5,000,000, 10,000,000, 20,000,000]
+
+
+BENCHMARK RESULTS (Single-run timings from notebook outputs)
+----------------------------------------------------------
+CPU Python Baseline
+- N = 200,000
+- Estimated pi = 3.14198
+- Runtime = 0.0703551769 s
+
+CPU NumPy Baseline (Vectorized)
+- N = 5,000,000
+- Estimated pi = 3.1413144
+- Runtime = 0.2278702259 s
+
+GPU Basic (Naive CUDA Kernel + Host RNG + Host->Device Transfers)
+- N = 10,000,000
+- Estimated pi = 3.1421124
+- Runtime = 0.5185582638 s
+
+GPU Optimized Kernel (Still Bottlenecked by Host RNG + Transfers)
+- N = 20,000,000
+- Estimated pi = 3.1408858
+- Runtime = 0.6381790638 s
+
+GPU Streamed Version (Attempted Optimization)
+- N = 20,000,000
+- Estimated pi = 3.1416887
+- Runtime = 0.8182182312 s
+
+GPU Fast RNG (True GPU-side RNG: xoroshiro128p)   [Best Result]
+- N = 20,000,000
+- Estimated pi = 3.147264
+- Runtime = 0.1223540306 s
+
+
+KEY INSIGHTS / BOTTLENECK ANALYSIS
+---------------------------------
+1) Naive GPU acceleration does not guarantee speed-up:
+   - Even with GPU parallel compute, overall runtime is limited by:
+     a) CPU-side random number generation
+     b) PCIe transfer overhead (host->device)
+
+2) Optimizing kernels alone is insufficient if the pipeline bottleneck is outside GPU compute.
+
+3) Major speed-up achieved only when generating random numbers directly on the GPU:
+   - True GPU-side RNG removes CPU RNG bottleneck
+   - Eliminates large transfers of random arrays
+
+
+SPEEDUP SUMMARY (Based on timings above)
+---------------------------------------
+Fast RNG GPU vs CPU NumPy:
+- N=20M (GPU Fast RNG) vs N=5M (CPU NumPy): 0.2279/0.1224 ≈ 1.86x faster
+  Note: CPU and GPU runs used different N values in notebook outputs
+
+Fast RNG GPU vs GPU Basic:
+- GPU Basic (10M): 0.5186 s
+- GPU Fast RNG (20M): 0.1224 s
+== ~4.24x faster (despite higher N in Fast RNG)
+
+Fast RNG GPU vs GPU Optimized (host RNG bottleneck):
+- GPU Optimized (20M): 0.6382 s
+- GPU Fast RNG (20M): 0.1224 s
+== ~5.22x faster
+
+
+CORRECTNESS
+-----------
+Monte Carlo estimates obtained (not exact; stochastic):
+- CPU Python (N=200k):          pi ≈ 3.14198
+- CPU NumPy (N=5M):            pi ≈ 3.1413144
+- GPU Basic (N=10M):           pi ≈ 3.1421124
+- GPU Optimized (N=20M):       pi ≈ 3.1408858
+- GPU Streamed (N=20M):        pi ≈ 3.1416887
+- GPU Fast RNG (N=20M):        pi ≈ 3.147264
