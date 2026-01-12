@@ -6,12 +6,18 @@ The main highlight is **performance engineering**: starting from a correct basel
 
 ---
 
+## Monte Carlo Method
+
+We estimate π using random points inside the unit square:
+
+- Generate N random points (x, y) where x and y are in [0, 1]
+- Count how many fall inside the quarter circle: x² + y² ≤ 1
+- Then:
+
+pi ≈ 4 × (inside_circle / N)
+
 ##  Project Goals
 
-- Estimate π using Monte Carlo sampling:
-  \[
-  \pi \approx 4 \cdot \frac{\#\{(x,y): x^2 + y^2 \le 1\}}{N}
-  \]
 - Compare execution performance across:
   - CPU Python baseline
   - CPU NumPy optimized baseline
@@ -102,7 +108,7 @@ This finally unlocks the true advantage of GPU parallelism.
 ##  Repository Structure (Recommended)
 
 ```bash
-gpu-monte-carlo/
+MonteCarlo/
 ├── notebooks/
 │   └── GPUacc_montecarlo.ipynb
 ├── src/                     
